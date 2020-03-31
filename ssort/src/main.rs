@@ -1,13 +1,10 @@
 extern crate rand;
-use rand::Rng;
 
 use std::env;
 use std::f32;
-use std::fs;
-use std::fs::{File, OpenOptions};
-use std::io::{Cursor, Read, Seek, SeekFrom, Write};
+use std::fs::{File};
+use std::io::{Read, Write};
 use std::process;
-use std::process::exit;
 use std::sync::{Arc, Barrier, RwLock};
 use std::thread;
 
@@ -71,8 +68,6 @@ fn main() {
         workers.push(tt);
     }
 
-    //println!("After exit: {:?}", sizes);
-
     // Join worker threads
 
     for tt in workers {
@@ -107,21 +102,6 @@ fn read_size(file: &mut File) -> u64 {
     let num = u64::from_ne_bytes(buffer);
 
     num
-}
-
-fn read_item(file: &mut File, ii: u64) -> f32 {
-    // TODO: Read the ii'th float from data file
-    0.0
-}
-
-fn sample(file: &mut File, count: usize, size: u64) -> Vec<f32> {
-    let mut rng = rand::thread_rng();
-    let mut ys = vec![];
-
-    // TODO: Sample 'count' random items from the
-    // provided file
-
-    ys
 }
 
 fn find_pivots(data: &Vec<f32>, threads: usize, num_data: u64) -> Vec<f32> {
