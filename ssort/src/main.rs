@@ -14,11 +14,7 @@ fn main() {
     if args.len() != 4 {
         println!("Usage:  <threads> input output");
         process::exit(1);
-
-        //println!("Usage:  <threads> input output", args[0]);
     }
-
-    // println!("arg1 : {} arg2: {}, arg3: {}, arg4: {}", args[0], args[1], args[2], args[3]);
 
     let threads = args[1].parse::<usize>().unwrap();
     let inp_path = &args[2];
@@ -41,7 +37,6 @@ fn main() {
         element[2] = inpbuffer[ii + 2];
         element[3] = inpbuffer[ii + 3];
         inputdata.push(f32::from_ne_bytes(element));
-        //       println!("ii: {} num: {} ", ii % 4  ,f32::from_ne_bytes(element));
         ii += 4;
     }
 
@@ -74,9 +69,6 @@ fn main() {
         tt.join().unwrap();
     }
 
-//    println!("input: {:?}", inputdata);
-//    println!("output: {:?}", results);
-
     // Create output file
     {
         let mut outf = File::create(out_path).unwrap();
@@ -95,12 +87,9 @@ fn main() {
 fn read_size(file: &mut File) -> u64 {
     // TODO: Read size field from data file
     let mut buffer = [0; 8];
-
     // read up to 8 bytes
     file.read_exact(&mut buffer).unwrap();
-
     let num = u64::from_ne_bytes(buffer);
-
     num
 }
 
@@ -130,8 +119,6 @@ fn find_pivots(data: &Vec<f32>, threads: usize, num_data: u64) -> Vec<f32> {
         ii += 3;
     }
     samples.push(f32::INFINITY);
-
-    //println!("{:?}", samples);
 
     samples
 }
@@ -163,8 +150,6 @@ fn worker(
 
     bb.wait();
 
-    //println!("Sizes: {:?}", sizes);
-
     let (mut start, mut k) = (0, 0);
 
     let count = sizes.read().unwrap();
@@ -184,42 +169,4 @@ fn worker(
         m = m + 1;
         k = k + 1
     }
-
-    /*
-    // TODO: Scan to collect local data
-    let data = vec![0f32, 1f32];
-
-    // TODO: Write local size to shared sizes
-    {
-        // curly braces to scope our lock guard
-    }
-
-    // TODO: Sort local data
-
-    // Here's our printout
-
-    // TODO: Write data to local buffer
-    let mut cur = Cursor::new(vec![]);
-
-    for xx in &data {
-        let tmp = xx.to_ne_bytes();
-        cur.write_all(&tmp).unwrap();
-    }
-
-    // TODO: Get position for output file
-    let prev_count = {
-        // curly braces to scope our lock guard
-        5
-    };
-
-    /*
-    let mut outf = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .open(out_path).unwrap();
-    */
-    // TODO: Seek and write local buffer.
-
-    // TODO: Figure out where the barrier goes.
-    */
 }
