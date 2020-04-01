@@ -8,6 +8,11 @@ use std::io::{Read, Write};
 use std::process;
 use std::sync::{Arc, Barrier, RwLock};
 use std::thread;
+use std::fs::OpenOptions;
+
+use std::io;
+use std::io::prelude::*;
+use std::io::SeekFrom;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -45,6 +50,11 @@ fn main() {
 
     let mut workers = vec![];
 
+    let mut outf = File::create(out_path).unwrap();
+    let tmp = size_count.to_ne_bytes();
+    outf.write_all(&tmp).unwrap();
+    outf.set_len(size_count).unwrap();
+
     // Spawn worker threads
     let sizes = Arc::new(RwLock::new(vec![0u64; threads]));
     let barrier = Arc::new(Barrier::new(threads));
@@ -57,9 +67,10 @@ fn main() {
         let inp_array = inputdata.clone();
         let inp_size = size_count.clone();
         let result_data = results.clone();
+        let outpath = out_path.clone();
 
         let tt = thread::spawn(move || {
-            worker(ii, inp_array, piv, szs, bar, inp_size, result_data);
+            worker(ii, inp_array, piv, szs, bar, inp_size, result_data, outpath);
         });
         workers.push(tt);
     }
@@ -70,30 +81,6 @@ fn main() {
         tt.join().unwrap();
     }
 
-    // Create output file
-    //   let writeStart = Instant::now();
-
-    {
-        let mut outf = File::create(out_path).unwrap();
-        let tmp = size_count.to_ne_bytes();
-        outf.write_all(&tmp).unwrap();
-        outf.set_len(size_count).unwrap();
-        let outdata = results.read().unwrap();
-        let mut write_buffer = vec![0u8; 4 * size_count as usize];
-        let mut pos_buffer = 0;
-        for xx in &*outdata {
-            let tmp = xx.to_bits().to_ne_bytes();
-            for kk in 0..4 {
-                write_buffer[pos_buffer] = tmp[kk];
-                pos_buffer += 1;
-            }
-        }
-        outf.write_all(&write_buffer).unwrap();
-
-        outf.set_len(size_count + 4 * size_count).unwrap();
-    }
-
-    //    println!("Time for write {} ", writeStart.elapsed().as_secs());
 }
 
 fn read_size(file: &mut File) -> u64 {
@@ -143,6 +130,7 @@ fn worker(
     bb: Arc<Barrier>,
     inp_size: u64,
     results: Arc<RwLock<Vec<f32>>>,
+    out_path: String,
 ) {
     // TODO: Open input as local fh
 
@@ -166,12 +154,15 @@ fn worker(
 
     let count = sizes.read().unwrap();
 
-    println!("{}: start {:.4}, count {}", tid, pivots[tid], count[tid]);
 
     while k < tid {
         start += count[k];
         k += 1;
     }
+    let offset = 8 + start * 4;
+
+    println!("{}: start {:.4}, count {}", tid, pivots[tid], count[tid], offset);
+
     let end: usize = (start + count[tid] - 1) as usize;
 
     let (mut m, mut k) = (0, start as usize);
@@ -180,5 +171,25 @@ fn worker(
         output[k] = localdata[m];
         m = m + 1;
         k = k + 1
+    }
+
+    {
+        let mut write_buffer = vec![0u8; 4 * count[tid] as usize];
+        let mut pos_buffer = 0;
+        for xx in localdata {
+            let tmp = xx.to_bits().to_ne_bytes();
+            for kk in 0..4 {
+                write_buffer[pos_buffer] = tmp[kk];
+                pos_buffer += 1;
+            }
+        }
+
+        let mut outf = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(out_path).unwrap();
+
+        outf.seek(SeekFrom::Start(offset)).unwrap();
+        outf.write_all(&write_buffer).unwrap();
     }
 }
