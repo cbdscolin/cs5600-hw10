@@ -1,8 +1,9 @@
 extern crate rand;
 
+use byteorder::{ByteOrder, LittleEndian};
 use std::env;
 use std::f32;
-use std::fs::{File};
+use std::fs::File;
 use std::io::{Read, Write};
 use std::process;
 use std::sync::{Arc, Barrier, RwLock};
@@ -36,7 +37,7 @@ fn main() {
         element[1] = inpbuffer[ii + 1];
         element[2] = inpbuffer[ii + 2];
         element[3] = inpbuffer[ii + 3];
-        inputdata.push(f32::from_ne_bytes(element));
+        inputdata.push(LittleEndian::read_f32(&element));
         ii += 4;
     }
 
@@ -70,18 +71,29 @@ fn main() {
     }
 
     // Create output file
+    //   let writeStart = Instant::now();
+
     {
         let mut outf = File::create(out_path).unwrap();
         let tmp = size_count.to_ne_bytes();
         outf.write_all(&tmp).unwrap();
         outf.set_len(size_count).unwrap();
         let outdata = results.read().unwrap();
-        for xx in & *outdata {
-            let tmp = xx.to_ne_bytes();
-            outf.write_all(&tmp).unwrap();
+        let mut write_buffer = vec![0u8; 4 * size_count as usize];
+        let mut pos_buffer = 0;
+        for xx in &*outdata {
+            let tmp = xx.to_bits().to_ne_bytes();
+            for kk in 0..4 {
+                write_buffer[pos_buffer] = tmp[kk];
+                pos_buffer += 1;
+            }
         }
+        outf.write_all(&write_buffer).unwrap();
+
         outf.set_len(size_count + 4 * size_count).unwrap();
     }
+
+    //    println!("Time for write {} ", writeStart.elapsed().as_secs());
 }
 
 fn read_size(file: &mut File) -> u64 {
