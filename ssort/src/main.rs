@@ -4,14 +4,17 @@ use byteorder::{ByteOrder, LittleEndian};
 use std::env;
 use std::f32;
 use std::fs::File;
+use std::fs::OpenOptions;
 use std::io::{Read, Write};
 use std::process;
 use std::sync::{Arc, Barrier, RwLock};
 use std::thread;
-use std::fs::OpenOptions;
 
 use std::io::prelude::*;
 use std::io::SeekFrom;
+
+use std::thread::sleep;
+use std::time::{Duration, Instant};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -30,9 +33,16 @@ fn main() {
     let mut inpf = File::open(inp_path).unwrap();
     let size_count = read_size(&mut inpf);
     let mut inpbuffer = Vec::new();
+
+    let now = Instant::now();
     inpf.read_to_end(&mut inpbuffer).unwrap();
 
+
+    println!("File read time: {}", now.elapsed().as_secs());
+
     let mut inputdata = Vec::new();
+
+    let now = Instant::now();
 
     let mut ii = 0;
     while ii < inpbuffer.len() {
@@ -45,7 +55,13 @@ fn main() {
         ii += 4;
     }
 
+    println!("Input process time: {}", now.elapsed().as_secs());
+
+    let now = Instant::now();
+
     let pivots = find_pivots(&inputdata, threads, size_count);
+
+    println!("Find pivots time: {}", now.elapsed().as_secs());
 
     let mut workers = vec![];
 
@@ -79,7 +95,6 @@ fn main() {
     for tt in workers {
         tt.join().unwrap();
     }
-
 }
 
 fn read_size(file: &mut File) -> u64 {
@@ -136,6 +151,9 @@ fn worker(
     let mut localdata = Vec::new();
     let mut ii = 0;
     let inpsize = inp_size as usize;
+    
+    let now = Instant::now();
+
     while ii < inpsize {
         if inp_data[ii] >= pivots[tid] && inp_data[ii] < pivots[tid + 1] {
             localdata.push(inp_data[ii]);
@@ -145,14 +163,21 @@ fn worker(
         ii = ii + 1;
     }
 
+    println!("Finding between pivots {}", now.elapsed().as_secs());
+
+    //Rust documentation
+
+    let now = Instant::now();
+
     localdata.sort_by(|a, b| a.partial_cmp(b).unwrap());
+
+    println!("Localdata sort time: {}", now.elapsed().as_secs());
 
     bb.wait();
 
     let (mut start, mut k) = (0, 0);
 
     let count = sizes.read().unwrap();
-
 
     while k < tid {
         start += count[k];
@@ -165,12 +190,8 @@ fn worker(
     let end: usize = (start + count[tid] - 1) as usize;
 
     let (mut m, mut k) = (0, start as usize);
-    while k <= end {
-        let mut output = results.write().unwrap();
-        output[k] = localdata[m];
-        m = m + 1;
-        k = k + 1
-    }
+
+    let now = Instant::now();
 
     {
         let mut write_buffer = vec![0u8; 4 * count[tid] as usize];
@@ -184,11 +205,15 @@ fn worker(
         }
 
         let mut outf = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .open(out_path).unwrap();
+            .read(true)
+            .write(true)
+            .open(out_path)
+            .unwrap();
 
         outf.seek(SeekFrom::Start(offset)).unwrap();
         outf.write_all(&write_buffer).unwrap();
     }
+
+    println!("File write time: {}", now.elapsed().as_secs());
+
 }
