@@ -10,7 +10,6 @@ use std::sync::{Arc, Barrier, RwLock};
 use std::thread;
 use std::fs::OpenOptions;
 
-use std::io;
 use std::io::prelude::*;
 use std::io::SeekFrom;
 
@@ -161,7 +160,7 @@ fn worker(
     }
     let offset = 8 + start * 4;
 
-    println!("{}: start {:.4}, count {}", tid, pivots[tid], count[tid], offset);
+    println!("{}: start {:.4}, count {}", tid, pivots[tid], count[tid]);
 
     let end: usize = (start + count[tid] - 1) as usize;
 
