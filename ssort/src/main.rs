@@ -37,7 +37,6 @@ fn main() {
     let now = Instant::now();
     inpf.read_to_end(&mut inpbuffer).unwrap();
 
-
     println!("File read time: {}", now.elapsed().as_secs());
 
     let mut inputdata = Vec::new();
@@ -151,7 +150,7 @@ fn worker(
     let mut localdata = Vec::new();
     let mut ii = 0;
     let inpsize = inp_size as usize;
-    
+
     let now = Instant::now();
 
     while ii < inpsize {
@@ -173,6 +172,16 @@ fn worker(
 
     println!("Localdata sort time: {}", now.elapsed().as_secs());
 
+    let mut write_buffer = vec![0u8; 4 * inp_size as usize];
+    let mut pos_buffer = 0;
+    for xx in localdata {
+        let tmp = xx.to_bits().to_ne_bytes();
+        for kk in 0..4 {
+            write_buffer[pos_buffer] = tmp[kk];
+            pos_buffer += 1;
+        }
+    }
+
     bb.wait();
 
     let (mut start, mut k) = (0, 0);
@@ -187,23 +196,10 @@ fn worker(
 
     println!("{}: start {:.4}, count {}", tid, pivots[tid], count[tid]);
 
-    let end: usize = (start + count[tid] - 1) as usize;
-
-    let (mut m, mut k) = (0, start as usize);
-
     let now = Instant::now();
 
+    write_buffer.truncate(count[tid] as usize);
     {
-        let mut write_buffer = vec![0u8; 4 * count[tid] as usize];
-        let mut pos_buffer = 0;
-        for xx in localdata {
-            let tmp = xx.to_bits().to_ne_bytes();
-            for kk in 0..4 {
-                write_buffer[pos_buffer] = tmp[kk];
-                pos_buffer += 1;
-            }
-        }
-
         let mut outf = OpenOptions::new()
             .read(true)
             .write(true)
@@ -215,5 +211,4 @@ fn worker(
     }
 
     println!("File write time: {}", now.elapsed().as_secs());
-
 }
