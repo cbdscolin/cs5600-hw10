@@ -11,13 +11,25 @@ Number of processor cores: 12
 Amount of RAM			 : 191 GB
 
 
-Table for psort in local & CCIS server: (10 million as the input)
-+-----------+-----------------+-------------------------+----------------+------------------------+
-| Processes | Local (seconds) | Parallel Speedup(Local) | CCIS (seconds) | Parallel Speedup(CCIS) |
-+-----------+-----------------+-------------------------+----------------+------------------------+
-|         1 |          13.200 |                       1 |         15.468 |                      1 |
-|         4 |           8.32  |               1.4757613 |          7.993 |            1.935193294 |
-|         8 |           7.406 |             1.459222252 |          5.723 |            2.702778263 |
-+-----------+-----------------+-------------------------+----------------+------------------------+
+Table for psort in local & CCIS server:
+
++---------+------------+--------------+-----------+-------------+
+| Process | Local(sec) | LocalSpeedup | CCIS(sec) | CCISSpeedup |
++---------+------------+--------------+-----------+-------------+
+|       1 |      13.28 |            1 |     13.23 |           1 |
+|       4 |        9.9 |  1.341414141 |      9.14 | 1.447483589 |
+|       8 |      10.32 |  1.286821705 |      8.28 | 1.597826087 |
++---------+------------+--------------+-----------+-------------+
+
+
+The local machine ran the rust parallel sorting algorithm for 10 million floating point numbers. The local machine has only 2 cores. Expectedly, the program doesn't offer any speedup when the number of threads running the program are increased beyond 2. This is due to the resource contention among threads and context switching. The speedup offered when the number of threads are two is largely due to the number of floats sorted by each thread. When the number of threads are more than two, the time taken by the psort program remains on par with the time taken by two threads.
+In the CCIS server the program was run for 5 million floating point numbers. The CCIS has 12 cores so it is expected that the server offers speedup when then threads are increased upto 12. This was observation when the program was run for 5 million floating point numbers. When the number of threads are increased beyond 12 the parallel speedup offered either remained the same as that was for 8 threads or degraded further. Significant time of the program is spent in sorting the numbers which requires CPU time. But when the number of threads are greater than the cores, this leads to resource contention leading to more latency which degrades the performance.
+
+
+Rust vs C for parallel sort:
+
+Rust performs slower than C for the parallel sort program. The biggest bottleneck in the program when it runs for very large input, is the sorting of floats for this program. The sequential part of the program involves reading the input file and creating the pivots does not take long when compared to sorting the numbers. The difference between the rust version and 'C' version of the program is the use of mutexes, barriers & files. In 'C' version of this program the shared 'sizes' array was used for writes by multiple threads as each thread only modified a this array at a specific index. The features in rust such as ownership & borrowing do not allow us the liberty to modify a shared element without obtaining a mutex. Morover, the mutex is tied to the shared variable using 'Arc', which prevents any accidental writes to the shared variable. This requires us to use a mutex which slows down the program execution by making other threads wait for the variable to be available for write.
+
+Rust provides us an in-built barrier to synchronize between threads. This makes the usage of barrier immune to any bugs. The usage of barrier in both 'C' and rust version of the program remains the same. For large inputs the output buffer which holds the array of bytes has to be written to the output file. This IO operation though not very expensive can act as a bottleneck since its neccessary to wait for all threads to complete writing to the shared 'sizes' array. This shared 'sizes' array is required to identify the offset of the output file, where this output buffer is ultimately written. The sorting function in rust runs significantly slower when compared to 'C', which has been one of the main reasons for 'C' version of the program outperform it's rust version. For 10 million floating point numbers, the whole rust program takes 12 seconds to run with a single thread as reported in the table above. About 8 seconds of these 10 seconds are spent on sorting the inpu floats by the rust sorting algorithm. Though significant difference is observed in speed, the rust program still offers significant benefits to programs of complex magnitude by handling data races effectively. The practices employed by rust help in preventing erroneous modifications of shared 'sizes' array, thus avoiding any resulting bugs altogether. 
 
 
