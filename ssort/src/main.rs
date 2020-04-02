@@ -198,7 +198,7 @@ fn worker(
 
     let now = Instant::now();
 
-    write_buffer.truncate(count[tid] as usize);
+    write_buffer.truncate((count[tid] * 4) as usize);
     {
         let mut outf = OpenOptions::new()
             .read(true)
